@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cerdas Cermat "Sang King"</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; color: #1f2937; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 1.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .btn-group { transition: all 0.2s ease; }
+        .btn-group:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.4); }
+        .btn-group:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(100%); }
+        .timer-bar-container { width: 100%; height: 10px; background-color: #e5e7eb; border-radius: 5px; overflow: hidden; }
+        .timer-bar { height: 100%; background-color: #22c55e; transition: width 1s linear, background-color 0.3s; }
+        .timer-warning { background-color: #eab308; }
+        .timer-danger { background-color: #ef4444; }
+        
+        /* Loading Animation */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #22c55e; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .hide { display: none !important; }
+        
+        /* Table Analysis Styles */
+        .analysis-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .analysis-table th, .analysis-table td { border: 1px solid #e5e7eb; padding: 0.5rem; text-align: center; }
+        .analysis-table th { background-color: #f3f4f6; font-weight: bold; }
+        .cell-correct { background-color: #dcfce7; color: #166534; font-weight: bold; }
+        .cell-wrong { background-color: #fee2e2; color: #991b1b; }
+        .cell-empty { background-color: #f3f4f6; color: #9ca3af; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 bg-[url('https://images.unsplash.com/photo-1530026405186-ed1f139313f8?q=80&w=1920&auto=format&fit=crop')] bg-cover bg-fixed bg-center">
+    
+    <!-- Overlay for background -->
+    <div class="fixed inset-0 bg-green-900/40 backdrop-blur-sm z-0"></div>
+
+    <div id="app-container" class="w-full max-w-4xl glass-panel relative z-10 min-h-[550px] flex flex-col overflow-hidden">
+        
+        <!-- HEADER IMAGE (Hanya tampil di login & lobby) -->
+        <div id="header-banner" class="w-full h-40 bg-[url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?q=80&w=1200&auto=format&fit=crop')] bg-cover bg-center border-b-4 border-green-500 relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
+                <h1 class="text-3xl md:text-4xl font-extrabold text-white drop-shadow-md">
+                    Cerdas Cermat "Sang King"
+                </h1>
+                <p class="text-green-200 mt-1 font-medium text-sm md:text-base">Kompetisi Kelas Cerdas Tangkas</p>
+            </div>
+        </div>
+
+        <!-- APP CONTENT AREA -->
+        <div class="p-6 md:p-8 flex-grow flex flex-col">
+            
+            <!-- LOADING SCREEN -->
+            <div id="screen-loading" class="flex-grow flex flex-col items-center justify-center">
+                <div class="loader mb-4"></div>
+                <p class="text-gray-600 animate-pulse font-medium">Menghubungkan ke server...</p>
+            </div>
+
+            <!-- SCREEN 1: LOGIN KELOMPOK -->
+            <div id="screen-login" class="hide flex-grow flex-col items-center justify-center w-full mt-4">
+                <h2 class="text-2xl font-bold mb-2 text-center text-gray-800">Pilih Identitas Anda</h2>
+                <p class="text-center text-amber-600 mb-8 font-medium text-sm bg-amber-50 px-4 py-2 rounded-lg border border-amber-200">
+                    ⚠️ Hanya 1 perangkat per kelompok. Pilih peran dengan benar!
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full" id="group-buttons-container">
+                    <!-- Buttons will be generated here by JS -->
+                </div>
+                
+                <div class="mt-12 pt-6 border-t border-gray-200 w-full text-center">
+                    <button id="btn-reset-game" class="text-xs text-red-400 hover:text-red-600 underline">Admin: Reset Seluruh Permainan</button>
+                </div>
+            </div>
+
+            <!-- SCREEN 2: LOBBY -->
+            <div id="screen-lobby" class="hide flex-grow flex-col items-center justify-center w-full">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-500 uppercase tracking-widest text-sm mb-1">Status Anda</h2>
+                    <h3 class="text-3xl font-black text-green-600 bg-green-50 inline-block px-6 py-2 rounded-xl border-2 border-green-200" id="my-group-display">Anda: Kelompok ?</h3>
+                </div>
+                
+                <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-sm border border-gray-100 mb-6 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                    <h4 class="font-bold text-gray-800 mb-4 text-center border-b pb-2 flex items-center justify-center gap-2">
+                        <span>👥</span> Kehadiran Kelompok
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3 text-sm" id="lobby-status-list">
+                        <!-- Status list generated here -->
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 text-blue-800 p-4 rounded-xl text-sm mb-8 text-center max-w-lg border border-blue-100">
+                    <strong>Aturan Kuis:</strong> Tercepat & Benar (100 Poin) | Benar Lainnya (90 Poin) | Salah (0 Poin). Waktu bervariasi bergantung kesulitan soal.
+                </div>
+
+                <!-- Kontrol Host/Guru -->
+                <div id="host-controls" class="w-full text-center hide">
+                    <p class="text-gray-500 text-sm mb-3" id="host-ready-status">0 dari 8 Kelompok telah siap.</p>
+                    <button id="btn-start-game" class="bg-gradient-to-r from-green-500 to-emerald-600 text-white font-black py-4 px-10 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all w-full md:w-auto text-xl ring-4 ring-green-200">
+                        ▶ MULAI KUIS SEKARANG
+                    </button>
+                    <p class="text-xs text-gray-400 mt-3">*Anda dapat memulai kuis kapan saja tanpa menunggu semua kelompok bergabung.</p>
+                </div>
+                
+                <!-- Pesan Tunggu Murid -->
+                <div id="waiting-host-msg" class="bg-emerald-50 border border-emerald-200 rounded-xl p-6 w-full max-w-md text-center hide">
+                    <div class="loader !border-emerald-200 !border-t-emerald-600 !w-8 !h-8 mb-3"></div>
+                    <p class="text-emerald-700 font-bold text-lg">Menunggu Guru memulai kuis...</p>
+                    <p class="text-emerald-600/70 text-sm mt-1">Bersiaplah, soal pertama akan segera muncul!</p>
+                </div>
+            </div>
+
+            <!-- SCREEN 3: KUIS (SOAL) -->
+            <div id="screen-question" class="hide flex-grow flex-col w-full">
+                <div class="flex justify-between items-end mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex items-center gap-3">
+                        <div id="level-icon" class="text-3xl">🌱</div>
+                        <div>
+                            <span class="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide inline-block mb-1" id="question-level">Tingkat: Mudah</span>
+                            <h2 class="text-lg md:text-xl font-black text-gray-800" id="question-number">Soal 1 / 40</h2>
+                        </div>
+                    </div>
+                    <div class="text-right bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                        <div class="text-4xl font-black text-gray-800 tabular-nums leading-none" id="timer-text">60</div>
+                        <div class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-1">Detik</div>
+                    </div>
+                </div>
+                
+                <div class="timer-bar-container mb-6 shadow-inner">
+                    <div class="timer-bar" id="timer-bar" style="width: 100%;"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 md:p-8 shadow-md border border-gray-100 mb-6 relative">
+                    <div class="absolute -top-3 -left-3 text-4xl text-green-200">❝</div>
+                    <p class="text-lg md:text-xl font-semibold text-gray-800 leading-relaxed relative z-10" id="question-text">
+                        Memuat pertanyaan...
+                    </p>
+                </div>
+
+                <!-- Tampilan Pilihan Ganda untuk Murid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full" id="options-container">
+                    <!-- Options generated here -->
+                </div>
+
+                <!-- Tampilan Live Monitor Khusus Guru -->
+                <div id="teacher-monitor-container" class="hide w-full bg-blue-50/50 rounded-2xl p-6 shadow-inner border-2 border-dashed border-blue-200 mb-6">
+                    <h4 class="font-bold text-blue-800 mb-4 text-center uppercase tracking-wider text-sm flex items-center justify-center gap-2">
+                        <span>📡</span> Monitor Jawaban Langsung
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="teacher-live-status">
+                        <!-- Status jawaban per kelompok masuk kesini -->
+                    </div>
+                </div>
+
+                <div id="answer-wait-overlay" class="hide absolute inset-0 bg-white/90 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center z-20 m-6 border-2 border-green-100 shadow-xl">
+                    <div class="text-6xl mb-4 animate-bounce">👍</div>
+                    <h3 class="text-2xl font-black text-green-700 mb-2">Jawaban Tersimpan!</h3>
+                    <p class="text-gray-600 font-medium text-center px-4 bg-gray-100 py-2 rounded-lg">Menunggu waktu habis untuk melihat hasilnya...</p>
+                </div>
+            </div>
+
+            <!-- SCREEN 4: EVALUASI (HASIL PER SOAL) -->
+            <div id="screen-evaluation" class="hide flex-grow flex-col items-center justify-center w-full">
+                <div class="text-center mb-6">
+                    <h2 class="text-3xl font-black mb-1 text-gray-800" id="eval-title">Waktu Habis!</h2>
+                </div>
+                
+                <div class="bg-white rounded-2xl p-6 md:p-8 shadow-md border-l-8 border-green-500 w-full max-w-2xl mb-8">
+                    <p class="text-gray-400 text-xs mb-2 uppercase tracking-widest font-bold flex items-center gap-2">
+                        <span>🔑</span> Kunci Jawaban Benar
+                    </p>
+                    <p class="text-xl md:text-2xl font-bold text-gray-800" id="eval-correct-answer">-</p>
+                </div>
+
+                <!-- Tampilan Khusus Murid: Hanya Skor Sendiri -->
+                <div id="student-eval-view" class="w-full max-w-md flex flex-col items-center hide">
+                    <div id="eval-badge" class="px-8 py-5 rounded-2xl font-black text-white text-2xl md:text-3xl mb-6 shadow-xl w-full text-center tracking-wide transform scale-100 transition-transform">
+                        Memproses...
+                    </div>
+                    <div class="bg-gradient-to-b from-blue-50 to-white border border-blue-100 rounded-2xl p-6 w-full text-center shadow-sm">
+                        <p class="text-blue-600 text-sm font-bold uppercase tracking-widest">Total Skor Kelompokmu</p>
+                        <p class="text-5xl font-black text-blue-900 mt-3 drop-shadow-sm" id="my-total-score">0</p>
+                    </div>
+                </div>
+
+                <!-- Tampilan Khusus Guru: Live Score Semua Kelompok -->
+                <div id="teacher-eval-view" class="w-full max-w-2xl hide">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <h4 class="font-bold text-gray-800 mb-4 text-center uppercase tracking-wider text-sm border-b border-gray-100 pb-3">
+                            🏆 Klasemen Sementara (Tampilan Guru)
+                        </h4>
+                        <div id="eval-leaderboard" class="space-y-3">
+                            <!-- Leaderboard injected here -->
+                        </div>
+                    </div>
+                    
+                    <button id="btn-next-question" class="mt-6 bg-blue-600 text-white font-black py-4 px-8 rounded-2xl shadow-xl hover:bg-blue-700 hover:shadow-2xl hover:-translate-y-1 transition-all w-full text-xl ring-4 ring-blue-200">
+                        Lanjut ke Soal Berikutnya ➔
+                    </button>
+                </div>
+
+                <div id="eval-waiting-msg" class="mt-8 bg-blue-50 px-6 py-3 rounded-full border border-blue-100 hide">
+                    <p class="text-blue-700 animate-pulse font-bold text-sm text-center flex items-center gap-2">
+                        <span class="loader !border-blue-200 !border-t-blue-600 !w-4 !h-4"></span> Menunggu Guru melanjutkan...
+                    </p>
+                </div>
+            </div>
+
+            <!-- SCREEN 5: HASIL AKHIR -->
+            <div id="screen-final" class="hide flex-grow flex-col items-center w-full py-6">
+                <div class="text-7xl mb-2 animate-bounce drop-shadow-lg">🎉</div>
+                <h2 class="text-4xl font-black mb-1 text-center text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-orange-500">KUIS SELESAI!</h2>
+                <p class="text-gray-500 font-medium mb-6">Luar biasa! Mari kita lihat siapa pemenangnya.</p>
+                
+                <div class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-yellow-200 mb-8 relative">
+                    <div class="bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 py-6 px-6 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 opacity-20 transform translate-x-4 -translate-y-4 text-8xl">👑</div>
+                        <h3 class="font-black text-white text-2xl text-center tracking-widest drop-shadow-md">JUARA KLASEMEN AKHIR</h3>
+                    </div>
+                    <div id="final-leaderboard" class="p-5 space-y-3 bg-gray-50">
+                        <!-- Final Leaderboard -->
+                    </div>
+                </div>
+
+                <!-- Bagian Analisis Khusus Guru -->
+                <div id="teacher-analysis-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200 hide mt-2">
+                    <div class="bg-gray-800 py-4 px-6 flex justify-between items-center">
+                        <h3 class="font-bold text-white text-lg flex items-center gap-2"><span>📊</span> Rekap Analisis Jawaban (Guru)</h3>
+                        <button id="btn-load-analysis" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow transition-colors text-sm">Muat Data Rekap</button>
+                    </div>
+                    <div class="p-6 overflow-x-auto bg-gray-50">
+                        <div id="analysis-loading" class="text-center text-gray-500 font-medium hide py-8">Memuat data analisis dari server...</div>
+                        <table class="analysis-table bg-white shadow-sm rounded-lg overflow-hidden hide" id="analysis-table">
+                            <!-- Table content generated via JS -->
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modals & Overlays -->
+    <div id="error-modal" class="hide fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-transform">
+            <div class="text-red-500 text-5xl mb-4">⚠️</div>
+            <h3 class="text-xl font-black mb-2 text-gray-800" id="error-title">Terjadi Kesalahan</h3>
+            <p class="text-gray-600 mb-8 text-sm bg-red-50 p-3 rounded-lg border border-red-100" id="error-message">Pesan error</p>
+            <button onclick="document.getElementById('error-modal').classList.add('hide')" class="bg-gray-800 hover:bg-black text-white font-bold py-3 px-6 rounded-xl w-full transition-colors">Tutup</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, collection, getDocs, writeBatch, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global Variables
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kuis-kingdom-app';
+        let firebaseConfig = {};
+        try {
+            firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        } catch(e) { console.error("Firebase config error"); }
+        
+        let app, db, auth;
+        let userId = null;
+        let myGroupId = null; // e.g., 'group1'
+        
+        // Game State Variables
+        let currentGameState = { status: 'lobby', currentQuestion: 0, startTime: 0 };
+        let allGroups = {};
+        let currentQuestionAnswers = {};
+        let timerInterval = null;
+        let isTeacher = false; // Flag for Teacher role
+        
+        // DOM Elements
+        const screens = {
+            loading: document.getElementById('screen-loading'),
+            login: document.getElementById('screen-login'),
+            lobby: document.getElementById('screen-lobby'),
+            question: document.getElementById('screen-question'),
+            evaluation: document.getElementById('screen-evaluation'),
+            final: document.getElementById('screen-final')
+        };
+        const headerBanner = document.getElementById('header-banner');
+
+        // 40 Soal: 16 Mudah (40%), 12 Sedang (30%), 12 Sulit (30%)
+        const QUESTIONS = [
+            // MUDAH (16 Soal) - Waktu 60 detik
+            { level: 'mudah', icon: '🦠', time: 60, text: "Makhluk hidup manakah yang dianggap bukan makhluk hidup seutuhnya karena tidak tersusun atas sel dan hanya bisa berkembang biak di dalam sel inang?", options: ["Bakteri", "Jamur", "Virus", "Protista"], correct: 2 },
+            { level: 'mudah', icon: '🛡️', time: 60, text: "Selaput atau selubung yang membungkus materi genetik (DNA/RNA) pada virus disebut...", options: ["Membran sel", "Kapsid", "Dinding sel", "Nukleus"], correct: 1 },
+            { level: 'mudah', icon: '👨‍🔬', time: 60, text: "Siapakah ilmuwan yang mengusulkan sistem klasifikasi 5 kingdom yang banyak digunakan hingga sekarang pada tahun 1969?", options: ["Ernst Haeckel", "Carolus Linnaeus", "Robert H. Whittaker", "Charles Darwin"], correct: 2 },
+            { level: 'mudah', icon: '🔬', time: 60, text: "Sel yang tidak memiliki membran inti sejati, sehingga DNA-nya berada di daerah nukleoid disebut sel...", options: ["Eukariotik", "Prokariotik", "Multiseluler", "Uniseluler"], correct: 1 },
+            { level: 'mudah', icon: '🧫', time: 60, text: "Bakteri Escherichia coli (E. coli) termasuk ke dalam kelompok organisme dengan tipe sel...", options: ["Eukariotik", "Prokariotik", "Protista", "Fungi"], correct: 1 },
+            { level: 'mudah', icon: '💧', time: 60, text: "Organisme yang seluruh tubuhnya hanya tersusun dari satu sel saja disebut...", options: ["Multiseluler", "Heterotrof", "Autotrof", "Uniseluler"], correct: 3 },
+            { level: 'mudah', icon: '🦠', time: 60, text: "Amoeba, Paramecium, dan Euglena adalah contoh organisme mikroskopis yang termasuk ke dalam kingdom...", options: ["Monera", "Protista", "Fungi", "Plantae"], correct: 1 },
+            { level: 'mudah', icon: '🍄', time: 60, text: "Kingdom apakah yang anggotanya memiliki dinding sel yang terbuat dari Kitin dan tidak memiliki klorofil?", options: ["Plantae", "Fungi", "Animalia", "Protista"], correct: 1 },
+            { level: 'mudah', icon: '☀️', time: 60, text: "Tumbuhan mampu membuat makanannya sendiri melalui proses fotosintesis. Sifat ini disebut...", options: ["Heterotrof", "Saprofit", "Autotrof", "Parasit"], correct: 2 },
+            { level: 'mudah', icon: '🕸️', time: 60, text: "Tubuh jamur (Fungi) umumnya tersusun atas benang-benang halus yang disebut...", options: ["Miselium", "Spora", "Rizoid", "Hifa"], correct: 3 },
+            { level: 'mudah', icon: '💨', time: 60, text: "Jamur berkembang biak secara aseksual maupun seksual utamanya menggunakan...", options: ["Biji", "Tunas", "Spora", "Membelah diri"], correct: 2 },
+            { level: 'mudah', icon: '🌿', time: 60, text: "Berikut ini adalah contoh Kingdom Plantae (Tumbuhan), KECUALI...", options: ["Pohon Mangga", "Lumut", "Paku", "Jamur Tiram"], correct: 3 },
+            { level: 'mudah', icon: '🧱', time: 60, text: "Dinding sel pada sel-sel Kingdom Plantae (Tumbuhan) utamanya tersusun dari zat...", options: ["Kitin", "Selulosa", "Peptidoglikan", "Lipid"], correct: 1 },
+            { level: 'mudah', icon: '🍖', time: 60, text: "Hewan tidak memiliki dinding sel dan harus memakan organisme lain untuk mendapatkan energi. Cara hidup ini disebut...", options: ["Autotrof", "Mixotrof", "Heterotrof", "Fotosintesis"], correct: 2 },
+            { level: 'mudah', icon: '🐛', time: 60, text: "Hewan yang tidak memiliki tulang belakang dikelompokkan ke dalam...", options: ["Vertebrata", "Invertebrata (Avertebrata)", "Mammalia", "Pisces"], correct: 1 },
+            { level: 'mudah', icon: '🐢', time: 60, text: "Katak, kura-kura, burung, dan kucing termasuk ke dalam kelompok hewan...", options: ["Invertebrata", "Arthropoda", "Vertebrata", "Mollusca"], correct: 2 },
+
+            // SEDANG (12 Soal) - Waktu 120 detik
+            { level: 'sedang', icon: '🧬', time: 120, text: "Manakah pernyataan yang BENAR mengenai perbedaan sel prokariotik dan sel eukariotik?", options: ["Prokariotik memiliki membran inti, eukariotik tidak", "Eukariotik memiliki inti sel sejati, prokariotik tidak", "Keduanya memiliki organel bermembran", "DNA prokariotik berbentuk linear, eukariotik sirkuler"], correct: 1 },
+            { level: 'sedang', icon: '🍄', time: 120, text: "Berdasarkan klasifikasi Kingdom Fungi, Rhizopus sp. (jamur tempe) termasuk ke dalam divisi...", options: ["Zygomycota", "Ascomycota", "Basidiomycota", "Deuteromycota"], correct: 0 },
+            { level: 'sedang', icon: '🌱', time: 120, text: "Tumbuhan lumut belum memiliki xilem dan floem sejati, sehingga dikelompokkan sebagai tumbuhan...", options: ["Berbiji terbuka", "Berpembuluh (Vaskular)", "Tidak berpembuluh (Non-vaskular)", "Berbiji tertutup"], correct: 2 },
+            { level: 'sedang', icon: '🌿', time: 120, text: "Ciri khas tumbuhan paku (Pteridophyta) saat masih muda adalah...", options: ["Menghasilkan bunga", "Daun mudanya menggulung", "Akar tunggang yang kuat", "Menghasilkan biji di strobilus"], correct: 1 },
+            { level: 'sedang', icon: '🌲', time: 120, text: "Perbedaan utama antara Gymnospermae dan Angiospermae terletak pada...", options: ["Ada tidaknya klorofil", "Tipe akar penyokongnya", "Letak bakal biji terhadap bakal buah", "Ada tidaknya jaringan pembuluh"], correct: 2 },
+            { level: 'sedang', icon: '🌳', time: 120, text: "Tumbuhan dikotil (Eudikotil) memiliki ciri-ciri berikut, KECUALI...", options: ["Memiliki dua keping biji (kotiledon)", "Akar tunggang", "Tulang daun menyirip atau menjari", "Berkas pembuluh tersebar (tidak teratur)"], correct: 3 },
+            { level: 'sedang', icon: '🔄', time: 120, text: "Dalam pergiliran keturunan (metagenesis) tumbuhan, fase yang menghasilkan spora disebut...", options: ["Gametofit", "Sporofit", "Protalium", "Rizoid"], correct: 1 },
+            { level: 'sedang', icon: '🦠', time: 120, text: "Bakteri penyebab penyakit kolera (Vibrio cholerae) memiliki bentuk sel berupa...", options: ["Kotak (Kubus)", "Spiral panjang", "Koma", "Bulat mengelompok"], correct: 2 },
+            { level: 'sedang', icon: '👣', time: 120, text: "Protista mirip hewan (Protozoa) yang bergerak menggunakan kaki semu (pseudopodia) dikelompokkan ke dalam...", options: ["Ciliata", "Flagellata", "Sporozoa", "Rhizopoda (Sarcodina)"], correct: 3 },
+            { level: 'sedang', icon: '🦟', time: 120, text: "Plasmodium adalah jenis Protista yang tidak memiliki alat gerak khusus dan hidup sebagai parasit penyebab penyakit malaria. Plasmodium termasuk kelompok...", options: ["Sporozoa / Apicomplexa", "Ciliata", "Alga Merah", "Jamur Lendir"], correct: 0 },
+            { level: 'sedang', icon: '🌊', time: 120, text: "Kelompok Protista yang berperan sebagai produsen utama penyumbang oksigen terbesar di perairan adalah...", options: ["Amoeba", "Alga (Fitoplankton)", "Jamur Air (Oomycota)", "Paramecium"], correct: 1 },
+            { level: 'sedang', icon: '🦑', time: 120, text: "Cumi-cumi, gurita, kerang, dan siput termasuk dalam kelompok hewan bertubuh lunak yang disebut filum...", options: ["Porifera", "Arthropoda", "Mollusca", "Echinodermata"], correct: 2 },
+
+            // SULIT (12 Soal) - Waktu 120 detik
+            { level: 'sulit', icon: '❓', time: 120, text: "Fungi yang tidak diketahui cara reproduksi seksualnya dikelompokkan sementara ke dalam divisi...", options: ["Chytridiomycota", "Deuteromycota", "Basidiomycota", "Ascomycota"], correct: 1 },
+            { level: 'sulit', icon: '🤝', time: 120, text: "Jamur dapat bersimbiosis mutualisme dengan akar tumbuhan tinggi yang berfungsi membantu penyerapan air dan mineral (terutama fosfor). Simbiosis ini disebut...", options: ["Mikoriza", "Liken (Lumut kerak)", "Nodul akar", "Endofit"], correct: 0 },
+            { level: 'sulit', icon: '🌱', time: 120, text: "Pada tumbuhan lumut (Bryophyta), fase hidup yang dominan (sering kita lihat sehari-hari) adalah...", options: ["Sporofit (2n)", "Gametofit (n)", "Protonema", "Sporangium"], correct: 1 },
+            { level: 'sulit', icon: '🌸', time: 120, text: "Tumbuhan Angiospermae mengalami proses 'pembuahan ganda'. Salah satu inti sperma membuahi inti kandung lembaga sekunder untuk menghasilkan...", options: ["Zigot", "Sel telur", "Endosperma (cadangan makanan)", "Kulit biji"], correct: 2 },
+            { level: 'sulit', icon: '🌲', time: 120, text: "Struktur reproduksi generatif pada sebagian besar tumbuhan berbiji terbuka (Gymnospermae) berupa runjung yang disebut...", options: ["Sorus", "Bunga sejati", "Kapsul", "Strobilus"], correct: 3 },
+            { level: 'sulit', icon: '🧪', time: 120, text: "Organisme dari kelompok Monera yang mampu melakukan fotosintesis dan menghasilkan oksigen di perairan (seperti Nostoc atau Anabaena) dikenal sebagai...", options: ["Archaea", "Sianobakteri (Cyanobacteria)", "Methanogen", "Bakteri gram positif"], correct: 1 },
+            { level: 'sulit', icon: '☠️', time: 120, text: "Ledakan populasi alga yang sangat cepat sehingga mengurangi oksigen di air dan mematikan ikan dikenal dengan istilah ekologis...", options: ["Eutrofikasi", "Algal bloom", "Red tide", "Biomagnifikasi"], correct: 1 },
+            { level: 'sulit', icon: '🧽', time: 120, text: "Hewan invertebrata yang tidak memiliki jaringan dan organ sejati, serta tubuhnya dipenuhi pori untuk menyaring makanan dari air adalah ciri filum...", options: ["Coelenterata", "Platyhelminthes", "Porifera", "Annelida"], correct: 2 },
+            { level: 'sulit', icon: '🪱', time: 120, text: "Cacing pipih seperti Planaria dan cacing hati (Fasciola hepatica) yang tidak memiliki rongga tubuh sejati termasuk ke dalam filum...", options: ["Annelida", "Nemathelminthes", "Platyhelminthes", "Echinodermata"], correct: 2 },
+            { level: 'sulit', icon: '🕷️', time: 120, text: "Laba-laba dan kalajengking tergabung dalam kelas Arachnida. Mereka berbeda dari serangga (Insecta) karena Arachnida...", options: ["Memiliki sayap", "Memiliki antena", "Memiliki 4 pasang kaki dan tidak berantena", "Tubuhnya hanya terdiri dari satu bagian membulat"], correct: 2 },
+            { level: 'sulit', icon: '🦅', time: 120, text: "Selain memiliki bulu, burung (Aves) memiliki struktur tambahan pada sistem pernapasannya yang sangat membantu saat terbang, yaitu...", options: ["Insang luar", "Pundi-pundi udara (kantung udara)", "Trakea bercabang", "Paru-paru buku"], correct: 1 },
+            { level: 'sulit', icon: '🦠', time: 120, text: "Euglena adalah Protista unik yang bersifat mixotrof. Apa maksud dari mixotrof pada Euglena?", options: ["Hidup di darat dan di air", "Berkembang biak seksual dan aseksual bersamaan", "Dapat berfotosintesis (autotrof) sekaligus memakan zat organik (heterotrof)", "Memiliki flagel dan silia sekaligus"], correct: 2 }
+        ];
+
+        function playCorrectSound() {
+            try {
+                if(Tone.context.state !== 'running') Tone.start();
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const now = Tone.now();
+                synth.volume.value = -5;
+                synth.triggerAttackRelease(["C5", "E5", "G5"], "8n", now);
+                synth.triggerAttackRelease(["E5", "G5", "C6"], "4n", now + 0.15);
+            } catch(e) { console.log("Audio not initialized"); }
+        }
+
+        function playWrongSound() {
+            try {
+                if(Tone.context.state !== 'running') Tone.start();
+                const synth = new Tone.Synth({ oscillator: { type: "sawtooth" } }).toDestination();
+                const now = Tone.now();
+                synth.volume.value = -5;
+                synth.triggerAttackRelease("D2", "8n", now);
+                synth.triggerAttackRelease("C2", "2n", now + 0.2);
+            } catch(e) { console.log("Audio not initialized"); }
+        }
+
+        function showError(title, message) {
+            document.getElementById('error-title').innerText = title;
+            document.getElementById('error-message').innerText = message;
+            document.getElementById('error-modal').classList.remove('hide');
+            console.error(title, message);
+        }
+
+        async function initFirebase() {
+            try {
+                if (!appId || !firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                    throw new Error("Konfigurasi Firebase tidak ditemukan di environment ini.");
+                }
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        setupDatabaseAndListeners();
+                    }
+                });
+            } catch (error) {
+                showError("Gagal Inisialisasi", error.message);
+                screens.loading.classList.add('hide');
+            }
+        }
+
+        async function setupDatabaseAndListeners() {
+            try {
+                const groupsRef = collection(db, 'artifacts', appId, 'public', 'data', 'groups');
+                const groupsSnap = await getDocs(groupsRef);
+                
+                if (groupsSnap.empty) {
+                    const batch = writeBatch(db);
+                    for(let i=0; i<=8; i++) {
+                        const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'groups', `group${i}`);
+                        batch.set(gRef, { name: i === 0 ? 'Guru' : `Kelompok ${i}`, claimedBy: null, score: 0 });
+                    }
+                    const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+                    batch.set(stateRef, { status: 'lobby', currentQuestion: 0, startTime: 0 });
+                    await batch.commit();
+                }
+
+                const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+                onSnapshot(stateRef, (docSnap) => {
+                    if(docSnap.exists()) {
+                        currentGameState = docSnap.data();
+                        handleStateChange();
+                    }
+                }, (error) => {
+                    showError("Sync Error", error.message);
+                });
+
+                onSnapshot(groupsRef, (querySnap) => {
+                    allGroups = {};
+                    querySnap.forEach(doc => {
+                        allGroups[doc.id] = doc.data();
+                        // CRITICAL FIX: Ensure Teacher state persists across reloads!
+                        if(doc.data().claimedBy === userId) {
+                            myGroupId = doc.id;
+                            isTeacher = (myGroupId === 'group0');
+                        }
+                    });
+                    
+                    if (currentGameState.status === 'lobby') {
+                        if (!myGroupId) {
+                            renderLoginScreen();
+                        } else {
+                            renderLobbyScreen();
+                        }
+                    } else if (currentGameState.status === 'playing') {
+                        if (!myGroupId) {
+                            alert("Permainan sudah dimulai. Anda menjadi penonton.");
+                            renderLobbyScreen(); 
+                        }
+                    }
+                }, (error) => {
+                    showError("Groups Sync Error", error.message);
+                });
+
+            } catch (err) {
+                showError("Setup DB Error", err.message);
+            }
+        }
+
+        function switchScreen(screenId) {
+            Object.values(screens).forEach(s => s.classList.add('hide'));
+            screens[screenId].classList.remove('hide');
+
+            // Header Banner hanya di Login & Lobby
+            if(screenId === 'login' || screenId === 'lobby') {
+                headerBanner.classList.remove('hide');
+            } else {
+                headerBanner.classList.add('hide');
+            }
+        }
+
+        function handleStateChange() {
+            const status = currentGameState.status;
+            
+            if (status === 'lobby') {
+                if (myGroupId) renderLobbyScreen();
+                else renderLoginScreen();
+            } else if (status === 'playing') {
+                startQuestionUI();
+            } else if (status === 'evaluation') {
+                renderEvaluationScreen();
+            } else if (status === 'finished') {
+                renderFinalScreen();
+            }
+        }
+
+        function renderLoginScreen() {
+            switchScreen('login');
+            const container = document.getElementById('group-buttons-container');
+            container.innerHTML = '';
+            
+            for (let i = 0; i <= 8; i++) {
+                const gId = `group${i}`;
+                const groupData = allGroups[gId];
+                const isClaimed = groupData && groupData.claimedBy !== null;
+                
+                const btn = document.createElement('button');
+                
+                if (i === 0) {
+                    btn.className = `btn-group py-4 px-2 rounded-2xl font-bold text-white shadow-md text-sm md:text-base border-b-4 col-span-2 md:col-span-4 ${isClaimed ? 'bg-gray-400 border-gray-500' : 'bg-gradient-to-br from-blue-500 to-indigo-600 border-indigo-800'}`;
+                    btn.innerHTML = isClaimed ? "👨‍🏫 Guru (Aktif)" : "👨‍🏫 Masuk Sebagai Guru";
+                } else {
+                    btn.className = `btn-group py-4 px-2 rounded-2xl font-bold text-white shadow-md text-sm md:text-base border-b-4 ${isClaimed ? 'bg-gray-400 border-gray-500' : 'bg-gradient-to-br from-green-400 to-emerald-500 border-emerald-700'}`;
+                    btn.innerText = `Kelompok ${i}`;
+                    if (isClaimed) {
+                        btn.innerHTML = `Kelompok ${i}<br><span class="text-xs font-normal opacity-75">Terkunci</span>`;
+                    }
+                }
+                
+                btn.disabled = isClaimed;
+                btn.onclick = async () => {
+                    await Tone.start();
+                    claimGroup(gId);
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        async function claimGroup(groupId) {
+            if (!userId) return;
+            try {
+                const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'groups', groupId);
+                await updateDoc(gRef, { claimedBy: userId, score: 0 });
+                myGroupId = groupId;
+                isTeacher = (groupId === 'group0');
+            } catch (e) {
+                console.error("Gagal memilih kelompok", e);
+            }
+        }
+
+        function renderLobbyScreen() {
+            switchScreen('lobby');
+            document.getElementById('my-group-display').innerHTML = isTeacher ? "👨‍🏫 Anda: GURU / HOST" : `👥 Anda: Kelompok ${myGroupId.replace('group', '')}`;
+            
+            const list = document.getElementById('lobby-status-list');
+            list.innerHTML = '';
+            let claimedCount = 0;
+            
+            for (let i = 1; i <= 8; i++) {
+                const gId = `group${i}`;
+                const isClaimed = allGroups[gId] && allGroups[gId].claimedBy !== null;
+                if(isClaimed) claimedCount++;
+                
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-lg flex items-center justify-between border ${isClaimed ? 'bg-green-50 border-green-200 text-green-800' : 'bg-gray-50 border-gray-100 text-gray-400'}`;
+                div.innerHTML = `
+                    <span class="font-bold">Klp ${i}</span>
+                    <span class="text-xs md:text-sm bg-white px-2 py-1 rounded-md shadow-sm border">${isClaimed ? '✅ Siap' : '⏳ Kosong'}</span>
+                `;
+                list.appendChild(div);
+            }
+
+            const hostControls = document.getElementById('host-controls');
+            const waitMsg = document.getElementById('waiting-host-msg');
+            const hostStatus = document.getElementById('host-ready-status');
+            const btnStart = document.getElementById('btn-start-game');
+            
+            if (isTeacher) {
+                hostControls.classList.remove('hide');
+                waitMsg.classList.add('hide');
+                
+                hostStatus.innerHTML = `<strong class="text-green-600">${claimedCount}</strong> dari 8 Kelompok telah bergabung.`;
+                btnStart.onclick = startGame;
+            } else {
+                hostControls.classList.add('hide');
+                waitMsg.classList.remove('hide');
+            }
+        }
+
+        async function startGame() {
+            if (!userId || !isTeacher) return;
+            const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+            await updateDoc(stateRef, {
+                status: 'playing',
+                currentQuestion: 0,
+                startTime: Date.now() + 2000
+            });
+        }
+
+        let localAnswersUnsubscribe = null;
+
+        function startQuestionUI() {
+            switchScreen('question');
+            const qIndex = currentGameState.currentQuestion;
+            if (qIndex >= QUESTIONS.length) {
+                if(isTeacher) {
+                    const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+                    updateDoc(stateRef, { status: 'finished' });
+                }
+                return;
+            }
+
+            const qData = QUESTIONS[qIndex];
+            
+            // Setup UI
+            const levelColors = {
+                'mudah': 'bg-green-100 text-green-800 border-green-200',
+                'sedang': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                'sulit': 'bg-red-100 text-red-800 border-red-200'
+            };
+            const levelEl = document.getElementById('question-level');
+            levelEl.innerText = `Tingkat: ${qData.level.toUpperCase()}`;
+            levelEl.className = `text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide inline-block mb-1 border ${levelColors[qData.level]}`;
+            
+            document.getElementById('level-icon').innerText = qData.icon || '❓';
+            document.getElementById('question-number').innerText = `Soal ${qIndex + 1} / ${QUESTIONS.length}`;
+            document.getElementById('question-text').innerText = qData.text;
+            
+            document.getElementById('answer-wait-overlay').classList.add('hide');
+
+            const optContainer = document.getElementById('options-container');
+            const teacherMonitor = document.getElementById('teacher-monitor-container');
+            
+            if (isTeacher) {
+                optContainer.classList.add('hide');
+                teacherMonitor.classList.remove('hide');
+            } else {
+                optContainer.classList.remove('hide');
+                teacherMonitor.classList.add('hide');
+                optContainer.innerHTML = '';
+                qData.options.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left bg-white hover:bg-green-50 border-2 border-gray-200 hover:border-green-400 text-gray-700 font-semibold py-4 px-6 rounded-2xl transition-all shadow-sm focus:outline-none focus:ring-4 focus:ring-green-200 hover:shadow-md transform hover:-translate-y-1";
+                    btn.innerHTML = `<span class="inline-block w-8 h-8 bg-gray-100 text-gray-600 rounded-full text-center leading-8 mr-3 font-bold border border-gray-200">${String.fromCharCode(65+idx)}</span> ${opt}`;
+                    btn.onclick = () => submitAnswer(idx);
+                    optContainer.appendChild(btn);
+                });
+            }
+
+            startTimer(qData.time);
+
+            if(localAnswersUnsubscribe) localAnswersUnsubscribe();
+            
+            const answersRef = collection(db, 'artifacts', appId, 'public', 'data', `answers_q${qIndex}`);
+            localAnswersUnsubscribe = onSnapshot(answersRef, (snap) => {
+                currentQuestionAnswers = {};
+                snap.forEach(d => { currentQuestionAnswers[d.id] = d.data(); });
+                
+                if (isTeacher) updateTeacherMonitor();
+
+                if (!isTeacher && myGroupId && currentQuestionAnswers[myGroupId]) {
+                    document.getElementById('answer-wait-overlay').classList.remove('hide');
+                }
+
+                checkAllAnswered(qData.time);
+            }, (err) => console.error(err));
+        }
+
+        function updateTeacherMonitor() {
+            const monitor = document.getElementById('teacher-live-status');
+            if(!monitor) return;
+            monitor.innerHTML = '';
+            
+            for(let i=1; i<=8; i++) {
+                const gId = `group${i}`;
+                if(allGroups[gId] && allGroups[gId].claimedBy) {
+                    const hasAnswered = !!currentQuestionAnswers[gId];
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded-xl text-center text-sm font-bold border-2 transition-all ${hasAnswered ? 'bg-green-100 border-green-400 text-green-800 shadow-sm' : 'bg-white border-gray-200 text-gray-400'}`;
+                    div.innerHTML = `Klp ${i}<br><span class="text-2xl mt-1 block">${hasAnswered ? '✅' : '⏳'}</span>`;
+                    monitor.appendChild(div);
+                }
+            }
+        }
+
+        function startTimer(durationSeconds) {
+            clearInterval(timerInterval);
+            const timerText = document.getElementById('timer-text');
+            const timerBar = document.getElementById('timer-bar');
+            
+            const targetTime = currentGameState.startTime + (durationSeconds * 1000);
+            
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const remainingMs = targetTime - now;
+                const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+                
+                timerText.innerText = remainingSec;
+                
+                const percent = Math.max(0, (remainingMs / (durationSeconds * 1000)) * 100);
+                timerBar.style.width = `${percent}%`;
+                
+                if(percent < 30) timerBar.className = "timer-bar timer-warning";
+                if(percent < 10) timerBar.className = "timer-bar timer-danger";
+                if(percent >= 30) timerBar.className = "timer-bar";
+
+                if (remainingMs <= 0) {
+                    clearInterval(timerInterval);
+                    timerText.innerText = "0";
+                    forceEndQuestion();
+                }
+            }, 100);
+        }
+
+        async function submitAnswer(optIndex) {
+            if (!userId || !myGroupId) return;
+            const qIndex = currentGameState.currentQuestion;
+            
+            if (currentQuestionAnswers[myGroupId]) return;
+
+            document.getElementById('answer-wait-overlay').classList.remove('hide');
+
+            const answerDocRef = doc(db, 'artifacts', appId, 'public', 'data', `answers_q${qIndex}`, myGroupId);
+            try {
+                await setDoc(answerDocRef, {
+                    answerIndex: optIndex,
+                    timestamp: Date.now()
+                });
+            } catch (err) {
+                console.error("Gagal mengirim jawaban", err);
+                document.getElementById('answer-wait-overlay').classList.add('hide');
+            }
+        }
+
+        function checkAllAnswered(totalTimeSec) {
+            let playingGroupsCount = 0;
+            for(let key in allGroups) {
+                if (key !== 'group0' && allGroups[key].claimedBy) playingGroupsCount++;
+            }
+            
+            const answersCount = Object.keys(currentQuestionAnswers).length;
+            
+            if (playingGroupsCount > 0 && answersCount >= playingGroupsCount) {
+                clearInterval(timerInterval);
+                forceEndQuestion();
+            }
+        }
+
+        async function forceEndQuestion() {
+            if (isTeacher) {
+                const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+                await updateDoc(stateRef, { status: 'evaluation' });
+            }
+        }
+
+        async function renderEvaluationScreen() {
+            switchScreen('evaluation');
+            if(localAnswersUnsubscribe) { localAnswersUnsubscribe(); localAnswersUnsubscribe = null; }
+            clearInterval(timerInterval);
+
+            const qIndex = currentGameState.currentQuestion;
+            const qData = QUESTIONS[qIndex];
+            
+            document.getElementById('eval-correct-answer').innerText = `${String.fromCharCode(65 + qData.correct)}. ${qData.options[qData.correct]}`;
+            
+            let answersArray = [];
+            for (let gId in currentQuestionAnswers) {
+                if(gId === 'group0') continue;
+                answersArray.push({
+                    groupId: gId,
+                    answerIndex: currentQuestionAnswers[gId].answerIndex,
+                    timestamp: currentQuestionAnswers[gId].timestamp
+                });
+            }
+            
+            answersArray.sort((a, b) => a.timestamp - b.timestamp);
+            
+            let fastestFound = false;
+            let pointsEarned = 0;
+            let isCorrect = false;
+            
+            for (let ans of answersArray) {
+                if (ans.answerIndex === qData.correct) {
+                    if (!fastestFound) {
+                        ans.points = 100;
+                        fastestFound = true;
+                    } else {
+                        ans.points = 90;
+                    }
+                    if(ans.groupId === myGroupId) isCorrect = true;
+                } else {
+                    ans.points = 0;
+                }
+                if (ans.groupId === myGroupId) pointsEarned = ans.points;
+            }
+            
+            if (isTeacher) {
+                const batch = writeBatch(db);
+                let analysisData = {};
+                
+                answersArray.forEach(ans => {
+                    if (ans.points > 0) {
+                        const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'groups', ans.groupId);
+                        batch.update(gRef, { score: increment(ans.points) });
+                    }
+                    analysisData[ans.groupId] = {
+                        answer: ans.answerIndex,
+                        points: ans.points,
+                        correct: (ans.answerIndex === qData.correct)
+                    };
+                });
+                
+                const analysisRef = doc(db, 'artifacts', appId, 'public', 'data', 'analysis', `q${qIndex}`);
+                batch.set(analysisRef, analysisData);
+                
+                try {
+                    await batch.commit();
+                } catch(e) { console.error("Error updating scores", e); }
+            }
+
+            const teacherView = document.getElementById('teacher-eval-view');
+            const studentView = document.getElementById('student-eval-view');
+            const evalBadge = document.getElementById('eval-badge');
+            const waitMsg = document.getElementById('eval-waiting-msg');
+
+            if (isTeacher) {
+                teacherView.classList.remove('hide');
+                studentView.classList.add('hide');
+                waitMsg.classList.add('hide');
+                setTimeout(renderLocalLeaderboard, 1000);
+                
+                const btnNext = document.getElementById('btn-next-question');
+                btnNext.onclick = nextQuestion;
+                if(qIndex === QUESTIONS.length - 1) {
+                    btnNext.innerText = "Selesaikan Kuis & Lihat Hasil ➔";
+                    btnNext.className = "mt-6 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-black py-4 px-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all w-full text-xl transform hover:-translate-y-1";
+                }
+            } else {
+                teacherView.classList.add('hide');
+                studentView.classList.remove('hide');
+                waitMsg.classList.remove('hide');
+
+                const didAnswer = answersArray.find(a => a.groupId === myGroupId);
+                
+                if (isCorrect) {
+                    playCorrectSound();
+                    if (pointsEarned === 100) {
+                        evalBadge.innerText = "🚀 +100 (Tercepat & Benar!)";
+                        evalBadge.className = "px-8 py-5 rounded-2xl font-black text-white text-2xl md:text-3xl mb-6 shadow-xl w-full text-center tracking-wide bg-gradient-to-r from-green-500 to-emerald-600 animate-bounce ring-4 ring-green-200";
+                    } else {
+                        evalBadge.innerText = "✅ +90 Poin (Benar)";
+                        evalBadge.className = "px-8 py-5 rounded-2xl font-black text-white text-2xl md:text-3xl mb-6 shadow-xl w-full text-center tracking-wide bg-emerald-500 ring-4 ring-emerald-200 transform scale-105";
+                    }
+                } else {
+                    playWrongSound();
+                    if (didAnswer) {
+                        evalBadge.innerText = "❌ SALAH (0 Poin)";
+                        evalBadge.className = "px-8 py-5 rounded-2xl font-black text-white text-2xl md:text-3xl mb-6 shadow-xl w-full text-center tracking-wide bg-red-500 border-2 border-red-600";
+                    } else {
+                        evalBadge.innerText = "⏳ WAKTU HABIS (0 Poin)";
+                        evalBadge.className = "px-8 py-5 rounded-2xl font-black text-white text-2xl md:text-3xl mb-6 shadow-xl w-full text-center tracking-wide bg-gray-500";
+                    }
+                }
+                
+                const myGroupData = allGroups[myGroupId];
+                if(myGroupData) {
+                    document.getElementById('my-total-score').innerText = myGroupData.score + pointsEarned;
+                }
+            }
+        }
+
+        function renderLocalLeaderboard() {
+            const container = document.getElementById('eval-leaderboard');
+            container.innerHTML = '';
+            
+            const sorted = Object.keys(allGroups)
+                .filter(k => k !== 'group0' && allGroups[k].claimedBy !== null)
+                .map(k => ({ id: k, ...allGroups[k] }))
+                .sort((a, b) => b.score - a.score);
+                
+            sorted.forEach((g, i) => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center p-3 rounded-xl bg-gray-50 border border-gray-200 shadow-sm hover:bg-gray-100 transition-colors";
+                
+                let medal = i === 0 ? '<span class="text-2xl mr-3 drop-shadow-sm">🥇</span>' : 
+                            i === 1 ? '<span class="text-2xl mr-3 drop-shadow-sm">🥈</span>' : 
+                            i === 2 ? '<span class="text-2xl mr-3 drop-shadow-sm">🥉</span>' : 
+                            `<span class="w-10 inline-block text-center text-gray-400 font-black mr-2">${i+1}.</span> `;
+                
+                div.innerHTML = `
+                    <div class="flex items-center text-gray-700">
+                        ${medal}
+                        <span class="font-bold text-lg">${g.name}</span>
+                    </div>
+                    <div class="font-black text-gray-800 text-xl bg-white px-3 py-1 rounded-lg border border-gray-200">${g.score} <span class="text-xs font-normal text-gray-500">pts</span></div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function nextQuestion() {
+            if (!isTeacher) return;
+            const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+            
+            if (currentGameState.currentQuestion >= QUESTIONS.length - 1) {
+                await updateDoc(stateRef, { status: 'finished' });
+            } else {
+                await updateDoc(stateRef, {
+                    status: 'playing',
+                    currentQuestion: currentGameState.currentQuestion + 1,
+                    startTime: Date.now() + 2000
+                });
+            }
+        }
+
+        function renderFinalScreen() {
+            switchScreen('final');
+            const container = document.getElementById('final-leaderboard');
+            container.innerHTML = '';
+            
+            const sorted = Object.keys(allGroups)
+                .filter(k => k !== 'group0' && allGroups[k].claimedBy !== null)
+                .map(k => ({ id: k, ...allGroups[k] }))
+                .sort((a, b) => b.score - a.score);
+                
+            sorted.forEach((g, i) => {
+                const div = document.createElement('div');
+                div.className = `flex justify-between items-center p-4 rounded-2xl shadow-sm ${g.id === myGroupId ? 'bg-blue-100 border-2 border-blue-400 shadow-md' : 'bg-white border border-gray-200'}`;
+                
+                let rankStyle = "text-gray-400 font-black text-2xl";
+                let icon = `${i+1}`;
+                let bgMedal = "";
+                
+                if(i === 0) { rankStyle = "text-yellow-600 text-4xl font-black"; icon = "🏆"; bgMedal = "bg-yellow-50"; }
+                else if(i === 1) { rankStyle = "text-gray-500 text-3xl font-black"; icon = "🥈"; bgMedal = "bg-gray-100"; }
+                else if(i === 2) { rankStyle = "text-orange-700 text-2xl font-black"; icon = "🥉"; bgMedal = "bg-orange-50"; }
+
+                if (i < 3) div.classList.add(bgMedal);
+
+                div.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-14 text-center ${rankStyle} drop-shadow-sm">${icon}</div>
+                        <div class="font-bold text-gray-800 text-xl ml-3">${g.name} ${g.id === myGroupId ? '<span class="bg-blue-500 text-white text-[10px] px-2 py-1 rounded-full ml-2 uppercase tracking-wide absolute -mt-6">Kamu</span>' : ''}</div>
+                    </div>
+                    <div class="text-3xl font-black text-gray-800 bg-white/50 px-4 py-2 rounded-xl border border-gray-100">${g.score} <span class="text-sm font-normal text-gray-500">pts</span></div>
+                `;
+                container.appendChild(div);
+            });
+
+            if (isTeacher) {
+                document.getElementById('teacher-analysis-container').classList.remove('hide');
+                document.getElementById('btn-load-analysis').onclick = loadAnalysisData;
+            }
+        }
+
+        async function loadAnalysisData() {
+            const btn = document.getElementById('btn-load-analysis');
+            const loading = document.getElementById('analysis-loading');
+            const table = document.getElementById('analysis-table');
+            
+            btn.disabled = true;
+            btn.innerText = "Memuat...";
+            loading.classList.remove('hide');
+            table.classList.add('hide');
+
+            try {
+                const analysisSnap = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'analysis'));
+                let recapData = {}; 
+                
+                analysisSnap.forEach(doc => {
+                    recapData[doc.id] = doc.data();
+                });
+
+                const activeGroups = Object.keys(allGroups)
+                    .filter(k => k !== 'group0' && allGroups[k].claimedBy !== null)
+                    .sort((a,b) => parseInt(a.replace('group','')) - parseInt(b.replace('group','')));
+
+                const totalQuestions = currentGameState.currentQuestion + (currentGameState.status === 'finished' ? 1 : 0);
+
+                let html = '<thead><tr><th class="w-16">Soal</th>';
+                activeGroups.forEach(gId => {
+                    html += `<th>Klp ${gId.replace('group', '')}</th>`;
+                });
+                html += '</tr></thead><tbody>';
+
+                for (let i = 0; i < totalQuestions; i++) {
+                    const qKey = `q${i}`;
+                    const qResult = recapData[qKey] || {};
+                    
+                    html += `<tr><td class="font-black bg-gray-100 border-b-2 text-gray-700">${i+1}</td>`;
+                    
+                    activeGroups.forEach(gId => {
+                        const res = qResult[gId];
+                        if (!res) {
+                            html += `<td class="cell-empty font-bold text-gray-400">-</td>`;
+                        } else if (res.correct) {
+                            html += `<td class="cell-correct">✓<br><span class="text-[10px] text-green-600 font-black">${res.points}p</span></td>`;
+                        } else {
+                            html += `<td class="cell-wrong font-black">✗</td>`;
+                        }
+                    });
+                    html += '</tr>';
+                }
+                html += '</tbody>';
+
+                table.innerHTML = html;
+                loading.classList.add('hide');
+                table.classList.remove('hide');
+                btn.innerText = "Refresh Data";
+                btn.disabled = false;
+
+            } catch (error) {
+                console.error("Error loading analysis", error);
+                loading.innerText = "Gagal memuat data.";
+                btn.innerText = "Coba Lagi";
+                btn.disabled = false;
+            }
+        }
+
+        document.getElementById('btn-reset-game').addEventListener('click', async () => {
+            if(!confirm("Yakin mereset seluruh database game? Semua poin dan klaim grup akan dihapus.")) return;
+            try {
+                const batch = writeBatch(db);
+                for(let i=0; i<=8; i++) {
+                    const gRef = doc(db, 'artifacts', appId, 'public', 'data', 'groups', `group${i}`);
+                    batch.update(gRef, { claimedBy: null, score: 0 });
+                }
+                const stateRef = doc(db, 'artifacts', appId, 'public', 'data', 'gamestate', 'state');
+                batch.update(stateRef, { status: 'lobby', currentQuestion: 0, startTime: 0 });
+                await batch.commit();
+                myGroupId = null; 
+            } catch(e) { alert("Error reset: " + e.message); }
+        });
+
+        window.addEventListener('DOMContentLoaded', initFirebase);
+
+    </script>
+</body>
+</html>
